@@ -1,28 +1,21 @@
+# VPN Settings
 {{- range $server := .Hosts }}
-remote {{ $server.Host }} {{ $server.Port }} {{ $server.Protocol }}
+remote {{ $server.Host }} {{ $server.Port }} tcp4
 {{- end }}
-
 verb 4
 client
 nobind
 dev tun
 cipher AES-128-CBC
 key-direction 1
-#redirect-gateway def1
+redirect-gateway def1
 tls-client
 remote-cert-tls server
-# uncomment below lines for use with linux
-#script-security 2
-# if you use resolved
-#up /etc/openvpn/update-resolv-conf
-#down /etc/openvpn/update-resolv-conf
-# if you use systemd-resolved first install openvpn-systemd-resolved package
-#up /etc/openvpn/update-systemd-resolved
-#down /etc/openvpn/update-systemd-resolved
 
-{{- if .PasswdAuth }}
-auth-user-pass
-{{- end }}
+#disable ipv6
+#https://community.openvpn.net/openvpn/ticket/849
+pull-filter ignore "route-ipv6"
+pull-filter ignore "ifconfig-ipv6"
 
 <cert>
 {{ .Cert -}}

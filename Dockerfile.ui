@@ -1,4 +1,6 @@
-FROM node:16-alpine3.15 AS frontend-builder
+# check=skip=SecretsUsedInArgOrEnv
+
+FROM node:20-alpine3.21 AS frontend-builder
 COPY ../frontend /app
 RUN apk add --update python3 make g++ && cd /app && npm install && npm run build
 
@@ -10,11 +12,40 @@ ARG TARGETARCH
 RUN cd /app && packr2 && env CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build -a -tags netgo -ldflags '-linkmode external -extldflags -static -s -w' -o ovpn-admin && packr2 clean
 
 FROM alpine:3.22
+
+USER root
 WORKDIR /app
 COPY --from=backend-builder /app/ovpn-admin /app
 ARG TARGETARCH
-RUN apk add --update bash easy-rsa openssl openvpn coreutils  && \
+
+RUN apk add --update bash easy-rsa openssl openvpn coreutils tzdata && \
     ln -s /usr/share/easy-rsa/easyrsa /usr/local/bin && \
     wget https://github.com/pashcovich/openvpn-user/releases/download/v1.0.4/openvpn-user-linux-${TARGETARCH}.tar.gz -O - | tar xz -C /usr/local/bin && \
     rm -rf /tmp/* /var/tmp/* /var/cache/apk/* /var/cache/distfiles/*
+
+ENV TZ=Europe/Bucharest \
+    EASYRSA_PATH=/etc/openvpn/easyrsa \
+    OVPN_VERBOSE=true \
+    OVPN_CCD=true \
+    OVPN_DEBUG=true \
+    OVPN_INDEX_PATH=/etc/openvpn/easyrsa/pki/index.txt \
+    OVPN_AUTH_DB_PATH=/etc/openvpn/easyrsa/pki/users.db \
+    OVPN_TEMPLATES_CC_PATH=/etc/openvpn/templates/client.conf.tpl \
+    OVPN_TEMPLATES_CCD_PATH=/etc/openvpn/templates/ccd.tpl \
+    OVPN_AUTH=false \
+    OVPN_NETWORK=192.168.100.0/24 \
+    OVPN_CCD_PATH=/etc/openvpn/ccd \
+    LOG_LEVEL=debug \
+    OVPN_SERVER=openvpn:1194:tcp \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    OVPN_LISTEN_HOST=0.0.0.0 \
+    OVPN_LISTEN_PORT=8080 \
+    OVPN_MGMT=main=openvpn:8989
+
+COPY ./templates/ /etc/openvpn/templates/
+
+VOLUME /etc/openvpn/ccd
+VOLUME /etc/openvpn/easyrsa
+
 RUN if [ -f "/usr/local/bin/openvpn-user-${TARGETARCH}" ]; then ln -s /usr/local/bin/openvpn-user-${TARGETARCH} /usr/local/bin/openvpn-user; fi
+CMD ["/app/ovpn-admin"]

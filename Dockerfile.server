@@ -1,9 +1,26 @@
+# check=skip=SecretsUsedInArgOrEnv
 FROM alpine:3.22
 ARG TARGETARCH
-RUN apk add --update bash openvpn easy-rsa iptables  && \
+
+RUN apk add --update bash openvpn easy-rsa iptables tzdata && \
     ln -s /usr/share/easy-rsa/easyrsa /usr/local/bin && \
     wget https://github.com/pashcovich/openvpn-user/releases/download/v1.0.4/openvpn-user-linux-${TARGETARCH}.tar.gz -O - | tar xz -C /usr/local/bin && \
     rm -rf /tmp/* /var/tmp/* /var/cache/apk/* /var/cache/distfiles/*
+
 RUN if [ -f "/usr/local/bin/openvpn-user-${TARGETARCH}" ]; then ln -s /usr/local/bin/openvpn-user-${TARGETARCH} /usr/local/bin/openvpn-user; fi
-COPY setup/ /etc/openvpn/setup
+
+COPY ./setup/ /etc/openvpn/setup
+
+USER root
+EXPOSE 1194/udp
+
+ENV TZ=Europe/Bucharest \
+    OVPN_SERVER_NET=192.168.100.0 \
+    OVPN_SERVER_MASK=255.255.255.0 \
+    OVPN_PASSWD_AUTH=false
+
+VOLUME /etc/openvpn/ccd
+VOLUME /etc/openvpn/easyrsa
+
 RUN chmod +x /etc/openvpn/setup/configure.sh
+CMD ["/etc/openvpn/setup/configure.sh"]

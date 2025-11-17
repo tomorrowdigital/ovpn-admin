@@ -7,7 +7,6 @@ SERVER_CERT="${EASY_RSA_LOC}/pki/issued/server.crt"
 OVPN_SRV_NET=${OVPN_SERVER_NET:-172.16.100.0}
 OVPN_SRV_MASK=${OVPN_SERVER_MASK:-255.255.255.0}
 
-
 cd $EASY_RSA_LOC
 
 if [ -e "$SERVER_CERT" ]; then
@@ -29,6 +28,7 @@ else
     openvpn --genkey --secret ./pki/ta.key
   fi
 fi
+
 easyrsa gen-crl
 
 iptables -t nat -D POSTROUTING -s ${OVPN_SRV_NET}/${OVPN_SRV_MASK} ! -d ${OVPN_SRV_NET}/${OVPN_SRV_MASK} -j MASQUERADE || true
@@ -56,4 +56,4 @@ fi
 
 mkdir -p /etc/openvpn/ccd
 
-openvpn --config /etc/openvpn/openvpn.conf --client-config-dir /etc/openvpn/ccd --port 1194 --proto tcp --management 127.0.0.1 8989 --dev tun0 --server ${OVPN_SRV_NET} ${OVPN_SRV_MASK}
+openvpn --config /etc/openvpn/openvpn.conf --block-ipv6 --client-config-dir /etc/openvpn/ccd --server ${OVPN_SRV_NET} ${OVPN_SRV_MASK}
